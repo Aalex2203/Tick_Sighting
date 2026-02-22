@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Tick Tracker</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: 24px auto; }
+    input, select, button { padding: 8px; margin: 6px 6px 6px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #ddd; padding: 8px; font-size: 14px; }
+    th { background: #f4f4f4; text-align: left; }
+    pre { background: #f7f7f7; padding: 12px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h2>Tick Sightings/h2>
+
+  <h3>Search Sightings</h3>
+  <div>
+    <input id="location" placeholder="Location (e.g. London)" />
+    <input id="start" placeholder="Start (YYYY-MM-DD)" style="width:260px" />
+    <input id="end" placeholder="End (YYYY-MM-DD)" style="width:260px" />
+    <button onclick="search()">Search</button>
+  </div>
+
+  <div id="summary"></div>
+  <table id="results" style="display:none">
+    <thead>
+      <tr>
+        <th>ID</th><th>Date</th><th>Location</th><th>Species</th><th>Latin</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h3>Reports</h3>
+  <div>
+    <button onclick="regions()">Regions</button>
+    <select id="period">
+      <option value="month">month</option>
+      <option value="week">week</option>
+    </select>
+    <button onclick="trends()">Trends</button>
+  </div>
+
+  <pre id="report"></pre>
+
+<script>
+  async function search() {
+    const location = document.getElementById('location').value.trim();
+    const startRaw = document.getElementById('start').value.trim();
+    const endRaw = document.getElementById('end').value.trim();
+
+    const toStartDateTime = (d) => (d && d.length === 10) ? d + "T00:00:00" : d;
+    const toEndDateTime = (d) => (d && d.length === 10) ? d + "T23:59:59" : d;
+
+    const start = toStartDateTime(startRaw);
+    const end = toEndDateTime(endRaw);
+
+    const params = new URLSearchParams();
+    if (location) params.set('location', location);
+    if (start) params.set('start', start);
+    if (end) params.set('end', end);
+
+    const res = await fetch('/sightings?' + params.toString());
+    const data = await res.json();
+
+    if (!res.ok) {
+      document.getElementById('summary').innerText = 'Error: ' + (data.message || res.status);
+      document.getElementById('results').style.display = 'none';
+      return;
+    }
+
+    document.getElementById('summary').innerText =
+      `Showing ${data.content.length} of ${data.totalElements} total (page ${data.number + 1}/${data.totalPages})`;
+
+    const tbody = document.querySelector('#results tbody');
+    tbody.innerHTML = '';
+    data.content.forEach(s => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${s.id ?? ''}</td>
+        <td>${s.date ? s.date.substring(0, 10) : ''}</td>
+        <td>${s.location ?? ''}</td>
+        <td>${s.species ?? ''}</td>
+        <td>${s.latinName ?? ''}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    document.getElementById('results').style.display = '';
+  }
+
+  async function regions() {
+    const res = await fetch('/reports/regions');
+    const data = await res.json();
+    document.getElementById('report').textContent = JSON.stringify(data, null, 2);
+  }
+
+  async function trends() {
+    const period = document.getElementById('period').value;
+    const res = await fetch(`/reports/trends?period=${encodeURIComponent(period)}`);
+    const data = await res.json();
+    document.getElementById('report').textContent = JSON.stringify(data, null, 2);
+  }
+
+  async function regions() {
+    const res = await fetch('/reports/regions');
+    const data = await res.json();
+    document.getElementById('report').textContent = JSON.stringify(data, null, 2);
+  }
+
+  async function trends() {
+    const period = document.getElementById('period').value;
+    const res = await fetch(`/reports/trends?period=${encodeURIComponent(period)}`);
+    const data = await res.json();
+    document.getElementById('report').textContent = JSON.stringify(data, null, 2);
+  }
+</script>
+</body>
+</html>
